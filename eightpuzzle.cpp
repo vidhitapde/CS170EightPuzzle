@@ -6,6 +6,7 @@
 #include <functional>
 using namespace std; 
 
+
 struct Node
 {
     vector <vector <int> > puzzle;
@@ -23,9 +24,8 @@ struct Node
     {
         return cost_fn > node.cost_fn; 
     }
-
 };
-vector <vector <int> > puzzle; 
+
 vector <vector <int> > goalState = 
 {
     {1, 2, 3},
@@ -33,35 +33,40 @@ vector <vector <int> > goalState =
     {7, 8, 0}
 };
 
-vector <vector <int> > trivial = 
+vector <vector <int> > depthLevel2 = 
 {
     {1, 2, 3},
-    {4, 0, 6},
-    {7, 5, 8}
+    {4, 5, 6},
+    {0, 7, 8}
 };
 
-vector <vector <int> > veryEasy = 
+vector <vector <int> > depthLevel8 = 
+{
+    {1, 3, 6},
+    {5, 0, 2},
+    {4, 7, 8}
+};
+
+vector <vector <int> > depthLevel12 = 
 {
     {1, 3, 6},
     {5, 0, 7},
     {4, 8, 2}
 };
 
-vector <vector <int> > easy = 
-{
-    {1, 2, 3},
-    {5, 0, 6},
-    {4, 7, 8}
-};
-
-vector <vector <int> > doable = 
+vector <vector <int> > depthLevel16 = 
 {
     {1, 6, 7},
     {5, 0, 3},
     {4, 8, 2}
 };
-
-vector <vector <int> > oh_boy = 
+vector <vector <int> > depthLevel20 = 
+{
+    {7, 1, 2},
+    {4, 8, 5},
+    {6, 3, 0}
+};
+vector <vector <int> > depthLevel24 = 
 {
     {0, 7, 2},
     {4, 6, 1},
@@ -172,7 +177,38 @@ int misplacedTileHeuristic(vector <vector <int > > &puzzle)
         }
     }
     return hn; 
+}
+int manhattanDistanceHeuristic(vector <vector <int > > &puzzle)
+{
+    int hn = 0; 
+    int goaliVal = 0; 
+    int goaljVal = 0; 
+    for (int i = 0; i < 3; i++)
+    {
+        for (int j = 0; j < 3; j++)
+        {
+            if((puzzle[i][j] != goalState[i][j]) && (puzzle[i][j] != 0))
+            {
+                for (int goali = 0; goali < 3; goali++)
+                {
+                    for (int goalj = 0; goalj < 3; goalj++)
+                    {
+                        if ((puzzle[i][j] != goalState[i][j]) && (puzzle[i][j] != 0))
+                        {
+                            goaliVal = goali; 
+                            goaljVal = goalj; 
+                            break;
+                        }
+                    }
+                }
+                int xabs = abs(i - goaliVal); 
+                int yabs = abs(j - goaljVal); 
+                hn += xabs + yabs; 
+            }
 
+        }
+    }
+    return hn; 
 }
 //uniform cost search
 void general_search(vector <vector <int> > puzzle, function <int(vector < vector <int > > &) > search)
@@ -184,10 +220,12 @@ void general_search(vector <vector <int> > puzzle, function <int(vector < vector
     frontier.push(root);
 
     int numOfExpandedNodes = 0; 
+    int maxqueueSize = 0; 
 
 
     while(!frontier.empty())
     {
+        maxqueueSize = max(maxqueueSize, (int)frontier.size()); 
 
         Node* currentPuzzle = frontier.top(); 
         frontier.pop();
@@ -198,20 +236,12 @@ void general_search(vector <vector <int> > puzzle, function <int(vector < vector
             continue; 
         }
 
-        
         if (goalStateReached(currentPuzzle->puzzle))
         {
             cout << "Goal State Reached! Puzzle is solved! :) " << endl; 
             cout << " Solution Depth:  " << currentPuzzle->cost_gn << endl;
             cout << " Number of Nodes Expanded: " << numOfExpandedNodes << endl; 
-
-            while(!frontier.empty())
-            {
-                delete frontier.top();
-                frontier.pop();
-            } 
-            delete currentPuzzle;
-            
+            cout << " Maximum Queue Size: " << maxqueueSize << endl; 
             return; 
         }
 
@@ -230,29 +260,19 @@ void general_search(vector <vector <int> > puzzle, function <int(vector < vector
             visitedPuzzles.push_back(currentPuzzle->puzzle);
             numOfExpandedNodes++; 
             vector <Node*> children = expand(currentPuzzle); 
-            for (Node* child : children)
+            for (int i = 0; i < children.size(); i++)
             {
-                if(!visited(child->puzzle, visitedPuzzles))
+                if(!visited(children[i]->puzzle, visitedPuzzles))
                 {
-                    child->cost_hn = search(child-> puzzle);
-                    child->cost_fn = child->cost_gn + child->cost_hn;
-                    frontier.push(child); 
-                }
-                else{
-                    delete child; 
+                    children[i]->cost_hn = search(children[i]-> puzzle);
+                    children[i]->cost_fn = children[i]->cost_gn + children[i]->cost_hn;
+                    frontier.push(children[i]); 
                 }
 
             }
-            delete currentPuzzle; 
         }
-    cout << " No Solution " << endl; 
-    while(!frontier.empty())
-    {
-        delete frontier.top();
-        frontier.pop(); 
-    }
-
-
+        
+        cout << " No Solution " << endl; 
 }
 
 
@@ -266,6 +286,8 @@ int main()
     cout << "Would you like to use a Default Puzzle or Create your own Puzzle? Type \"1\" for Default or \"2\" for Create your own Puzzle" << endl;
 
     int puzzleChoice; 
+    vector<vector<int> > puzzle;
+
 
     if(cin >> puzzleChoice)
     {
@@ -274,34 +296,39 @@ int main()
             cout << "Default Puzzle Selected " << endl;
             int puzzleNum; 
 
-            cout << "Please select a puzzle to solve from trivial (1), veryEasy (2), easy (3), doable (4), oh_boy (5) " << endl; 
+            cout << "Please select a puzzle to solve from depthLevel2 (1), depthLevel8 (2), depthLevel12 (3), depthLevel16 (4), depthLevel20 (5), depthLevel24 (6) " << endl; 
 
             if(cin >> puzzleNum)
             {
                 if (puzzleNum == 1)
                 {
-                    cout << "Trivial Puzzle Selected " << endl; 
-                    puzzle = trivial; 
+                    cout << "DepthLevel2 Puzzle Selected " << endl;
+                    puzzle = depthLevel2;  
                 }
                 else if (puzzleNum == 2)
                 {
-                    cout << "Very Easy Puzzle Selected " << endl; 
-                    puzzle = veryEasy; 
+                    cout << "DepthLevel8 Selected " << endl; 
+                    puzzle = depthLevel8; 
                 }
                 else if (puzzleNum == 3)
                 {
-                    cout << "Easy Puzzle Selected " << endl; 
-                    puzzle = easy; 
+                    cout << "DepthLevel12 Selected " << endl; 
+                    puzzle = depthLevel12; 
                 }
                 else if (puzzleNum == 4)
                 {
-                    cout << "Do Able Puzzle Selected " << endl; 
-                    puzzle = doable; 
+                    cout << "DepthLevel16 Puzzle Selected " << endl; 
+                    puzzle = depthLevel16; 
                 }
                 else if (puzzleNum == 5)
                 {
-                    cout << "Oh Boy Puzzle Selected " << endl; 
-                    puzzle = oh_boy; 
+                    cout << "DepthLevel20 Puzzle Selected " << endl; 
+                    puzzle = depthLevel20; 
+                }
+                else if (puzzleNum == 6)
+                {
+                    cout << "DepthLevel24 Puzzle Selected " << endl; 
+                    puzzle = depthLevel24; 
                 }
                 else
                 {
@@ -312,13 +339,11 @@ int main()
         else if (puzzleChoice == 2)
         {
             cout << "Create your own Puzzle " << endl;
-            int size;
-            vector <vector <int> > puzzle(size, vector <int> (size)); 
-            cout << "Enter the size of your puzzle"  << endl; 
-            cin >> size; 
-            for (int i = 0; i < size; i++)
+
+            puzzle.resize(3,vector<int>(3));     
+            for (int i = 0; i < 3; i++)
             {
-                for (int j = 0; j < size; j++)
+                for (int j = 0; j < 3; j++)
                 {
                     cin >> puzzle[i][j];
                 }
@@ -352,22 +377,12 @@ int main()
         else if (algorithmNum == 3)
         {
             cout << "Solving the 8-Puzzle using A* with Manhattan Tile Heuristic..." << endl; 
+            general_search(puzzle, manhattanDistanceHeuristic);
         }
         else
         {
             cout << "Invalid Choice " << endl; 
         }
     }
-
-    cout << "Find the empty Tile " << endl;
-    cout << "Empty Tile is at: " << zeroTile(puzzle).first << " " << zeroTile(puzzle).second << endl;
     return 0;
 }
-
-
-
-
-
-
-
-
